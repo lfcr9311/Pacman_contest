@@ -7,23 +7,18 @@ from game import Directions
 from util import nearestPoint
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first='AgenteTimido', second='AgenteReflexoDefensivo'):
+               first='AgenteTimido', second='AgenteDefensivo'):
     return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 
-##########
-# Agentes #
-##########
-
-            # Inicializa o estado do agente
-
-class AgenteCapturaReflexo(CaptureAgent):
-    def registerInitialState(self, gameState):
-        # Inicializa o estado do agente
-        CaptureAgent.registerInitialState(self, gameState)
+class AgenteDefensivo(CaptureAgent):
+    lastSuccess = 0
+    flag = 1
+    flag2 = 0
+    currentFoods = []
+    s = []
 
     def chooseAction(self, gameState):
-        # Choose an action based on evaluations
         actions = gameState.getLegalActions(self.index)
         values = [self.evaluate(gameState, a) for a in actions]
 
@@ -33,7 +28,6 @@ class AgenteCapturaReflexo(CaptureAgent):
         foodLeft = len(self.getFood(gameState).asList())
 
         if foodLeft <= 2:
-
             bestDist = 9999
             for action in actions:
                 successor = self.getSuccessor(gameState, action)
@@ -44,22 +38,18 @@ class AgenteCapturaReflexo(CaptureAgent):
                     bestDist = dist
             return bestAction
 
-        # Choose one of the best actions
         return random.choice(bestActions)
 
     def getSuccessor(self, gameState, action):
-        # Generates the successor of the current state based on the action
         successor = gameState.generateSuccessor(self.index, action)
         pos = successor.getAgentState(self.index).getPosition()
 
         if pos != nearestPoint(pos):
-            # Continue generating successors until reaching a valid point
             return successor.generateSuccessor(self.index, action)
         else:
             return successor
 
     def evaluate(self, gameState, action):
-        # Avalia a ação com base nos recursos e pesos
         features = self.getFeatures(gameState, action)
         weights = self.getWeights(gameState, action)
         return features * weights
@@ -74,7 +64,6 @@ class AgenteCapturaReflexo(CaptureAgent):
         return {'successorScore': 1.0}
 
     def getMostDenseArea(self, gameState):
-        # Obtém a área mais densa de comida que estamos defendendo
         ourFood = self.getFoodYouAreDefending(gameState).asList()
         distance = [self.getMazeDistance(gameState.getAgentPosition(self.index), a) for a in ourFood]
         nearestFood = ourFood[0]
@@ -85,77 +74,6 @@ class AgenteCapturaReflexo(CaptureAgent):
                 nearestFood = ourFood[i]
                 nearestDstance = distance[i]
         return nearestFood
-
-
-class AgenteReflexoDefensivo(AgenteCapturaReflexo):
-    lastSuccess = 0
-    flag = 1
-    flag2 = 0
-    currentFoods = []
-    s = []
-
-    def getFeatures(self, gameState, action):
-        self.start = self.getMostDenseArea(gameState)
-
-        features = util.Counter()
-        successor = self.getSuccessor(gameState, action)
-
-        myState = successor.getAgentState(self.index)
-        myPos = myState.getPosition()
-        self.s = (18, 7)
-        features['onDefense'] = 1
-        if myState.isPacman: features['onDefense'] = 0
-
-        features['Boundries'] = self.getMazeDistance(myPos, self.s)
-
-        if (self.flag2 == 0):
-            self.flag2 = 1
-            self.currentFoods = self.getFoodYouAreDefending(gameState).asList()
-        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-        invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
-
-        features['numInvaders'] = len(invaders)
-        if len(invaders) > 0:
-            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
-            pos = [a.getPosition() for a in invaders]
-            nearestPos = pos[0]
-            nearestDst = dists[0]
-
-            for i in range(len(dists)):
-                if dists[i] < nearestDst:
-                    nearestPos = pos[i]
-                    nearestDst = dists[i]
-
-            features['invaderPDistance'] = nearestDst
-            if (features['invaderDistance'] == 1 or features['invaderPDistance'] == 1 or features[
-                'invaderLDistance'] == 1):
-                self.flag = 0
-                self.lastSuccess = nearestPos
-                features['invaderLDistance'] = self.getMazeDistance(myPos, self.lastSuccess)
-                self.currentFoods = self.getFoodYouAreDefending(gameState).asList()
-
-
-            if (len(self.currentFoods) > len(self.getFoodYouAreDefending(gameState).asList())):
-
-                nextFoods = self.getFoodYouAreDefending(gameState).asList()
-
-                for i in range(len(self.currentFoods)):
-                    if (len(self.currentFoods) > 0 and len(nextFoods) > i):
-                        if (self.currentFoods[i][0] != nextFoods[i][0] or self.currentFoods[i][1] != nextFoods[i][1]):
-                            features['invaderPDistance'] = self.getMazeDistance(myPos, self.currentFoods[i])
-                            self.lastSuccess = self.currentFoods[i]
-                            self.currentFoods = nextFoods
-                            break
-
-        if action == Directions.STOP: features['stop'] = 1
-        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-        if action == rev: features['reverse'] = 1
-
-        return features
-
-    def getWeights(self, gameState, action):
-        return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'invaderPDistance': -20,
-                'invaderLDistance': -5, 'Boundries': -10, 'stop': -100, 'reverse': -2}
 
 
 class AgenteTimido(CaptureAgent):
@@ -169,9 +87,7 @@ class AgenteTimido(CaptureAgent):
         self.plano = [[], []]
 
     def registerInitialState(self, gameState):
-        # Inicializa o estado do agente
         self.comidaComida = 0
-
         self.altura = len(gameState.getWalls()[0])
         for parede in gameState.getWalls().asList():
             if parede[1] == 0:
@@ -297,3 +213,4 @@ class AgenteTimido(CaptureAgent):
                     open.push((node, current[1] + [node]), self.getMazeDistance(node, target))
 
         return []
+
