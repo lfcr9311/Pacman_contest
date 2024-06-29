@@ -15,6 +15,8 @@ def createTeam(firstIndex, secondIndex, isRed,
 # Agentes #
 ##########
 
+            # Inicializa o estado do agente
+
 class AgenteCapturaReflexo(CaptureAgent):
     def registerInitialState(self, gameState):
         # Inicializa o estado do agente
@@ -31,7 +33,7 @@ class AgenteCapturaReflexo(CaptureAgent):
         foodLeft = len(self.getFood(gameState).asList())
 
         if foodLeft <= 2:
-            # If there's almost no food left, return to the start position
+
             bestDist = 9999
             for action in actions:
                 successor = self.getSuccessor(gameState, action)
