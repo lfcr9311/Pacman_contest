@@ -22,39 +22,34 @@ def createTeam(firstIndex, secondIndex, isRed,
 # Agents #
 ##########
 
-class DummyAgent(CaptureAgent):
-    """
-    A Dummy agent to serve as an example of the necessary agent structure.
-    You should look at baselineTeam.py for more details about how to
-    create an agent as this is the bare minimum.
-    """
-
-    def registerInitialState(self, gameState: GameState) -> None:
-        """
-        This method handles the initial setup of the
-        agent to populate useful fields (such as what team
-        we're on).
-
-        A distanceCalculator instance caches the maze distances
-        between each pair of positions, so your agents can use:
-        self.distancer.getDistance(p1, p2)
-
-        IMPORTANT: This method may run for at most 15 seconds.
-        """
-
-        '''
-        Make sure you do not delete the following line. If you would like to
-        use Manhattan distances instead of maze distances in order to save
-        on initialization time, please take a look at
-        CaptureAgent.registerInitialState in captureAgents.py.
-        '''
+class AgenteCapturaReflexo(CaptureAgent):
+    # Inicializa o estado do agente
+    def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(self, gameState)
 
-        '''
-        Your initialization code goes here, if you need any.
-        '''
+    def chooseAction(self, gameState):
+        actions = gameState.getLegalActions(self.index)
+        values = [self.evaluate(gameState, a) for a in actions]
 
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
+        foodLeft = len(self.getFood(gameState).asList())
+
+        if foodLeft <= 2:
+            # If there's almost no food left, return to the start position
+            bestDist = 9999
+            for action in actions:
+                successor = self.getSuccessor(gameState, action)
+                pos2 = successor.getAgentPosition(self.index)
+                dist = self.getMazeDistance(self.start, pos2)
+                if dist < bestDist:
+                    bestAction = action
+                    bestDist = dist
+            return bestAction
+
+        # esse retorno é para retornar a ação que tem o maior valor
+        return random.choice(bestActions)
     def chooseAction(self, gameState: GameState) -> Action:
         """
         Picks among actions randomly.
