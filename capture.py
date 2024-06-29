@@ -48,7 +48,7 @@ The keys are
   P1: 'a', 's', 'd', and 'w' to move
   P2: 'l', ';', ',' and 'p' to move
 """
-import imp
+import importlib.util
 import random
 import sys
 import time
@@ -974,7 +974,9 @@ def loadAgents(isRed: bool,
       factory += ".py"
     
     print(factory)
-    module = imp.load_source('player' + str(int(isRed)), factory)
+    spec = importlib.util.spec_from_file_location('player' + str(int(isRed)), factory)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
   except (NameError, ImportError):
     print('Error: The team "' + factory + '" could not be loaded! ', file=sys.stderr)
     traceback.print_exc()
