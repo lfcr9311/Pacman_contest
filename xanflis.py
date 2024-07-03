@@ -1,3 +1,7 @@
+#Integrantes: Luis Felipe Rossi, Pablo Montiel e Joao Pedro Silva
+
+
+
 import random
 import util
 
@@ -19,11 +23,8 @@ def createTeam(firstIndex, secondIndex, isRed,
 # Agents #
 ##########
 
-#baseado no baseline.py
-
 class ReflexCaptureAgent(CaptureAgent):
     def registerInitialState(self, gameState):
-        self.start = gameState.getAgentPosition(self.index)
 
         CaptureAgent.registerInitialState(self, gameState)
 
@@ -52,6 +53,7 @@ class ReflexCaptureAgent(CaptureAgent):
         return random.choice(bestActions)
 
     def getSuccessor(self, gameState, action):
+
 
         successor = gameState.generateSuccessor(self.index, action)
         pos = successor.getAgentState(self.index).getPosition()
@@ -88,11 +90,6 @@ class ReflexCaptureAgent(CaptureAgent):
                 nearestFood = ourFood[i]
                 nearestDstance = distance[i]
         return nearestFood
-
-
-
-
-
 
 
 class AgenteDefensivo(ReflexCaptureAgent):
@@ -163,12 +160,6 @@ class AgenteDefensivo(ReflexCaptureAgent):
                 'invaderLDistance': -5, 'Boundries': -10, 'stop': -100, 'reverse': -2}
 
 
-
-
-
-
-
-
 class AgenteTimido(CaptureAgent):
 
     def __init__(self, index, timeForComputing=.1):
@@ -180,18 +171,21 @@ class AgenteTimido(CaptureAgent):
         self.plan = [[], []]
 
     def registerInitialState(self, gameState):
+
         self.eaten = 0
+
         self.height = len(gameState.getWalls()[0])
         for w in gameState.getWalls().asList():
             if w[1] == 0:
                 self.width += 1
+
         CaptureAgent.registerInitialState(self, gameState)
 
     def chooseAction(self, gameState):
-        myPos = gameState.getAgentPosition(self.index)
+        mypos = gameState.getAgentPosition(self.index)
 
         if self.getPreviousObservation() is not None:
-            if self.getPreviousObservation().hasFood(myPos[0], myPos[1]):
+            if self.getPreviousObservation().hasFood(mypos[0], mypos[1]):
                 self.eaten += 1
 
         nearestFood = self.nearestFood(gameState)
@@ -203,22 +197,21 @@ class AgenteTimido(CaptureAgent):
                 y = random.choice(range(0, self.height, 1))
                 if not gameState.hasWall(int(self.width / 2), y):
                     self.plan = [[int(self.width / 2) + 1, y],
-                                 self.escapePath(gameState, self.width, self.height, nearestEnemy,
-                                                 [int(self.width / 2), y])]
+                                 self.bfs(gameState, self.width, self.height, nearestEnemy,
+                                          [int(self.width / 2), y])]
             if len(self.plan[1]) == 0:
                 if not len(self.plan[0]) == 0:
-                    self.plan[1] = self.escapePath(gameState, self.width, self.height, nearestEnemy, self.plan[0])
+                    self.plan[1] = self.bfs(gameState, self.width, self.height, nearestEnemy, self.plan[0])
             self.escapepath = self.plan[1]
         else:
             self.plan = [[], []]
             if len(nearestEnemy) > 0:
                 if nearestEnemy[1] < 4:
-                    self.escapepath = self.escapePath(gameState, self.width, self.height, nearestEnemy,
-                                                      [self.width / 2 - 4])
+                    self.escapepath = self.bfs(gameState, self.width, self.height, nearestEnemy, [self.width / 2 - 4])
             else:
                 self.escapepath = []
-                if self.eaten == 5:
-                    self.escapepath = self.escapePath(gameState, 36, 17, nearestEnemy, [self.width / 2 - 1])
+                if self.eaten > 5:
+                    self.escapepath = self.escapePath(gameState, self.width, self.height, nearestEnemy)
 
         actions = gameState.getLegalActions(self.index)
         values = [self.evaluate(gameState, nearestFood, nearestEnemy, self.escapepath, a) for a in actions]
@@ -228,101 +221,190 @@ class AgenteTimido(CaptureAgent):
         action = random.choice(bestActions)
         return action
 
-    def escapePath(self, gameState, width, height, enemy, point):
-        myPos = gameState.getAgentPosition(self.index)
+    def escapePath(self, game_state, width, height, enemy, force_return=False):
+        stack = util.Stack()
+        myState = game_state.getAgentState(self.index)
+        myPos = myState.getPosition()
+
+        visited = []
+        if len(enemy) > 0:
+            visited = [[enemy[0][0], enemy[0][1]]]
+        stack.push([myPos[0], myPos[1]])
         path = []
 
-        # Simplesmente move na direção oposta ao inimigo mais próximo, se houver
-        if len(enemy) > 0:
-            enemyPos = enemy[0]
-            dx = myPos[0] - enemyPos[0]
-            dy = myPos[1] - enemyPos[1]
-            # Movimento para a esquerda
-            if dx > 0 and not gameState.hasWall(myPos[0] - 1, myPos[1]):
-                path.append((myPos[0] - 1, myPos[1]))
-            # Movimento para a direita
-            elif dx < 0 and not gameState.hasWall(myPos[0] + 1, myPos[1]):
-                path.append((myPos[0] + 1, myPos[1]))
-            # Movimento para baixo
-            elif dy > 0 and not gameState.hasWall(myPos[0], myPos[1] - 1):
-                path.append((myPos[0], myPos[1] - 1))
-            # Movimento para cima
-            elif dy < 0 and not gameState.hasWall(myPos[0], myPos[1] + 1):
-                path.append((myPos[0], myPos[1] + 1))
+        while not stack.isEmpty():
+            myPos = stack.pop()
+            path.append(myPos)
+
+            if force_return and myPos[0] < width / 2:
+                return path
+
+            neighbors = [
+                [myPos[0] - 1, myPos[1]],  # Right
+                [myPos[0], myPos[1] + 1],  # Up
+                [myPos[0], myPos[1] - 1],  # Down
+                [myPos[0] + 1, myPos[1]]   # Left
+            ]
+
+            for neighbor in neighbors:
+                if 0 <= neighbor[0] < width and 0 <= neighbor[1] < height and not game_state.hasWall(neighbor[0], neighbor[1]) and neighbor not in visited:
+                    stack.push(neighbor)
+                    visited.append(neighbor)
+
+            if myPos[0] == 1 and myPos[1] == 2:
+                return path
 
         return path
 
     def nearestFood(self, gameState):
+
         food = self.getFood(gameState).asList()
         distance = [self.getMazeDistance(gameState.getAgentPosition(self.index), a) for a in food]
 
         if len(food) < 3:
             previous = self.getFoodYouAreDefending(gameState).asList()[0]
             return [previous, self.getMazeDistance(gameState.getAgentPosition(self.index), previous)]
-
         nearestFood = food[0]
-        nearestDistance = distance[0]
+        nearestDstance = distance[0]
 
         for i in range(len(distance)):
-            if distance[i] < nearestDistance:
+            if distance[i] < nearestDstance:
                 nearestFood = food[i]
-                nearestDistance = distance[i]
+                nearestDstance = distance[i]
 
-        return [nearestFood, nearestDistance]
+        return [nearestFood, nearestDstance]
 
     def getNearestEnemy(self, gameState):
-        myPos = gameState.getAgentPosition(self.index)
-        enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
-        invaders = [a for a in enemies if not a.isPacman and a.getPosition() is not None]
-        dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+        myState = gameState.getAgentState(self.index)
+        myPos = myState.getPosition()
 
+        enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        invaders = [a for a in enemies if not a.isPacman and a.getPosition() != None]
+        dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+        scare = 0
         if len(invaders) == 0:
             return []
-
-        nearestEnemy = invaders[0].getPosition()
-        nearestDistance = dists[0]
-
-        for i in range(len(dists)):
-            if dists[i] < nearestDistance:
-                nearestEnemy = invaders[i].getPosition()
-                nearestDistance = dists[i]
-
-        return [nearestEnemy, nearestDistance]
+        else:
+            nearestEnemy = invaders[0].getPosition()
+            isPacman = invaders[0].isPacman
+            nearestDstance = dists[0]
+            for i in range(len(dists)):
+                if dists[i] < nearestDstance:
+                    nearestEnemy = invaders[i].getPosition()
+                    nearestDstance = dists[i]
+                    scare = invaders[i].scaredTimer
+        return [nearestEnemy, nearestDstance, scare, isPacman]
 
     def evaluate(self, gameState, nearestFood, nearestEnemy, escapepath, action):
+
         score = 0
+        scorelist = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        next = gameState.generateSuccessor(self.index, action)
+        nextpos = next.getAgentPosition(self.index)
+        nextscore = next.getScore()
 
-        if gameState.generateSuccessor(self.index, action).getScore() > gameState.getScore():
+        if nextscore > gameState.getScore():
             score += 2
-
-        if self.getMazeDistance(gameState.generateSuccessor(self.index, action).getAgentPosition(self.index),
-                                nearestFood[0]) < nearestFood[1]:
+            scorelist[0] = 2
+        if self.getMazeDistance(next.getAgentPosition(self.index), nearestFood[0]) < nearestFood[1]:
             score += 1
+            scorelist[2] = 1
 
         pre = self.getPreviousObservation()
-        if pre is not None and pre.getAgentPosition(self.index) == gameState.generateSuccessor(self.index,
-                                                                                               action).getAgentPosition(
-                self.index):
-            score -= 5
+        if pre != None:
+            if self.getPreviousObservation().getAgentPosition(self.index) == nextpos:
+                score -= 5
+                scorelist[3] = -5
 
         if len(nearestEnemy) > 0 and nearestEnemy[1] < 4:
-            if gameState.generateSuccessor(self.index, action).getAgentState(self.index).isPacman:
-                score += (self.getMazeDistance(
-                    gameState.generateSuccessor(self.index, action).getAgentPosition(self.index), nearestEnemy[0]) -
-                          nearestEnemy[1])
-                nextActions = gameState.generateSuccessor(self.index, action).getLegalActions(self.index)
+            if next.getAgentState(self.index).isPacman:
+                score += (self.getMazeDistance(next.getAgentPosition(self.index), nearestEnemy[0]) - nearestEnemy[1])
+                scorelist[4] = (
+                        self.getMazeDistance(next.getAgentPosition(self.index), nearestEnemy[0]) - nearestEnemy[1])
+                nextActions = next.getLegalActions(self.index)
                 if len(nextActions) == 2:
                     score -= 100
+                    scorelist[5] = -100
         else:
             score += 2
+            scorelist[6] = 2
 
         if len(escapepath) > 0:
-            if [gameState.generateSuccessor(self.index, action).getAgentPosition(self.index)[0],
-                gameState.generateSuccessor(self.index, action).getAgentPosition(self.index)[1]] in escapepath:
+            if [nextpos[0], nextpos[1]] in escapepath:
                 if not (len(nearestEnemy) > 0 > nearestEnemy[2] and nearestEnemy[1] < 3):
                     score += 10
-
+                    scorelist[7] = 10
         if action == Directions.STOP:
             score = -10
+            scorelist[8] = -10
 
         return score
+
+
+    def bfs(self, game_state, width, height, enemy, point):
+
+        queue = util.Queue()
+        myState = game_state.getAgentState(self.index)
+        myPos = myState.getPosition()
+
+        visited = []
+        if len(enemy) > 0:
+            visited = [[enemy[0][0], enemy[0][1]]]
+        queue.push([myPos[0], myPos[1]])
+
+        path = []
+
+        while not queue.isEmpty():
+
+            myPos = [int(myPos[0]), int(myPos[1] + 0.5)]
+            psize = len(visited)
+            loop = []
+
+            right = [myPos[0] - 1, myPos[1]]
+            if right[0] >= 0 and right not in visited and not game_state.hasWall(right[0], right[1]):
+                queue.push(right)
+                visited.append(right)
+            if right in visited: loop.append(right)
+
+            up = [myPos[0], myPos[1] + 1]
+            if up[1] < height and up not in visited and not game_state.hasWall(up[0], up[1]):
+                queue.push(up)
+                visited.append(up)
+            if up in visited:  loop.append(up)
+
+            down = [myPos[0], myPos[1] - 1]
+            if down[1] >= 0 and down not in visited and not game_state.hasWall(down[0], down[1]):
+                queue.push(down)
+                visited.append(down)
+            if down in visited: loop.append(down)
+
+            left = [myPos[0] + 1, myPos[1]]
+            if left[0] < width and left not in visited and not game_state.hasWall(left[0], left[1]):
+                queue.push(left)
+                visited.append(left)
+
+            if left in visited: loop.append(left)
+            myPos = queue.pop()
+            path.append(myPos)
+
+            if len(point) == 1:
+                if myPos[0] == point[0]:
+                    a = myPos
+                    f = []
+                    for i in reversed(path):
+                        if abs(a[0] - i[0]) + abs(a[1] - i[1]) <= 1:
+                            f.append(i)
+                            a = i
+                    return f
+            else:
+
+                if myPos[0] == point[0] and myPos[1] == point[1]:
+                    a = myPos
+                    f = []
+                    for i in reversed(path):
+                        if abs(a[0] - i[0]) + abs(a[1] - i[1]) <= 1:
+                            f.append(i)
+                            a = i
+                    return f
+
+        return []
